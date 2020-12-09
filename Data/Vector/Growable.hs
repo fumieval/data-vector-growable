@@ -5,6 +5,7 @@ module Data.Vector.Growable
   , replicate
   , replicateM
   , pushBack
+  , popBack
   , length
   , read
   , write
@@ -54,6 +55,15 @@ pushBack (Growable ref) val = do
   writeMutVar ref $ GVState (len + 1) vec'
   MV.write vec' len val
 {-# INLINE pushBack #-}
+
+popBack :: (PrimMonad m, MVector v a) => Growable v (PrimState m) a -> m (Maybe a)
+popBack (Growable ref) = do
+  GVState len vec <- readMutVar ref
+  if len == 0
+    then pure Nothing
+    else do
+      writeMutVar ref $ GVState (len - 1) vec
+      Just <$> MV.unsafeRead vec len
 
 length :: (PrimMonad m) => Growable v (PrimState m) a -> m Int
 length (Growable ref) = do
