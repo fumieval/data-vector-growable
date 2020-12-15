@@ -13,6 +13,8 @@ module Data.Vector.Growable
   , thaw
   , freeze
   , unsafeFreeze
+  , fromGrowable
+  , toGrowable
   ) where
 
 import Prelude hiding (read, length, replicate)
@@ -116,3 +118,11 @@ unsafeFreeze (Growable ref) = do
   v <- G.unsafeFreeze vec
   pure $! G.unsafeTake len v
 {-# INLINE unsafeFreeze #-}
+
+fromGrowable :: (PrimMonad m, MVector v a) => Growable v (PrimState m) a -> m (v (PrimState m) a)
+fromGrowable (Growable ref) = do
+  GVState len vec <- readMutVar ref
+  pure $! MV.unsafeTake len vec
+
+toGrowable ::  (PrimMonad m, MVector v a) => v (PrimState m) a -> m (Growable v (PrimState m) a)
+toGrowable vec = Growable <$> newMutVar (GVState (MV.length vec) vec)
