@@ -50,7 +50,7 @@ pushBack :: (PrimMonad m, MVector v a) => Growable v (PrimState m) a -> a -> m (
 pushBack (Growable ref) val = do
   GVState len vec <- readMutVar ref
   vec' <- if MV.length vec == len
-    then MV.unsafeGrow vec len
+    then MV.unsafeGrow vec (max 1 len)
     else pure vec
   writeMutVar ref $ GVState (len + 1) vec'
   MV.write vec' len val
@@ -63,7 +63,7 @@ popBack (Growable ref) = do
     then pure Nothing
     else do
       writeMutVar ref $ GVState (len - 1) vec
-      Just <$> MV.unsafeRead vec len
+      Just <$> MV.unsafeRead vec (len - 1)
 
 length :: (PrimMonad m) => Growable v (PrimState m) a -> m Int
 length (Growable ref) = do
@@ -79,23 +79,21 @@ read (Growable ref) i = do
 
 write :: (PrimMonad m, MVector v a) => Growable v (PrimState m) a -> Int -> a -> m ()
 write (Growable ref) i val = do
-  GVState len vec <- readMutVar ref
-  if MV.length vec > i
+  GVState _len vec <- readMutVar ref
+  if MV.length vec <= i
     then do
-      vec' <- MV.unsafeGrow vec $ 1 `shiftL` (finiteBitSize i - countLeadingZeros i) - MV.length vec
+      let amount = 1 `shiftL` (finiteBitSize i - countLeadingZeros i) - MV.length vec
+      vec' <- MV.unsafeGrow vec amount
       MV.unsafeWrite vec' i val
-      writeMutVar ref $ GVState (len + 1) vec
+      writeMutVar ref $ GVState (i + 1) vec'
     else MV.unsafeWrite vec i val
 {-# INLINE write #-}
 
 modify :: (PrimMonad m, MVector v a) => Growable v (PrimState m) a -> (a -> a) -> Int -> m ()
 modify (Growable ref) f i = do
   GVState len vec <- readMutVar ref
-  if MV.length vec > i
-    then do
-      vec' <- MV.unsafeGrow vec $ 1 `shiftL` (finiteBitSize i - countLeadingZeros i) - MV.length vec
-      MV.unsafeModify vec' f i
-      writeMutVar ref $ GVState (len + 1) vec
+  if len <= i
+    then error $ "index out of bounds: " <> show len <> " <= " <> show i
     else MV.unsafeModify vec f i
 {-# INLINE modify #-}
 
