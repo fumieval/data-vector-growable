@@ -66,6 +66,7 @@ popBack (Growable ref) = do
     else do
       writeMutVar ref $ GVState (len - 1) vec
       Just <$> MV.unsafeRead vec (len - 1)
+{-# INLINE popBack #-}
 
 length :: (PrimMonad m) => Growable v (PrimState m) a -> m Int
 length (Growable ref) = do
@@ -123,6 +124,8 @@ fromGrowable :: (PrimMonad m, MVector v a) => Growable v (PrimState m) a -> m (v
 fromGrowable (Growable ref) = do
   GVState len vec <- readMutVar ref
   pure $! MV.unsafeTake len vec
+{-# INLINE fromGrowable #-}
 
 toGrowable ::  (PrimMonad m, MVector v a) => v (PrimState m) a -> m (Growable v (PrimState m) a)
 toGrowable vec = Growable <$> newMutVar (GVState (MV.length vec) vec)
+{-# INLINE toGrowable #-}
