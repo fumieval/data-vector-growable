@@ -1,5 +1,5 @@
 # Revision history for generic-grow-vector
 
-## 0.1.0.0 -- YYYY-mm-dd
+## 0.0.1
 
-* First version. Released on an unsuspecting world.
+* Added `atomicPush` and `atomicPop`

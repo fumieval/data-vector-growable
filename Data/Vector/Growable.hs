@@ -31,6 +31,7 @@ module Data.Vector.Growable
   -- * Atomic operation
   , CASVector(..)
   , atomicPush
+  , atomicPop
   ) where
 
 import Prelude hiding (read, length, replicate, null)
@@ -217,16 +218,18 @@ instance CASVector P.MVector Int where
 forgeIntTicket :: Int -> Ticket Int
 forgeIntTicket = unsafeCoerce
 
+complete :: CASVector v a => v RealWorld a -> MutVar RealWorld (Pending a) -> IO ()
+complete vec v = readMutVar v >>= \case
+  Complete -> pure ()
+  Pending i oldVal newVal -> do
+    (_done, _) <- casVectorElem vec i oldVal newVal
+    writeMutVar v Complete
+
 -- | Atomically push a value to the end of the vector.
 -- | Based on <https://www.stroustrup.com/lock-free-vector.pdf Damian Dechev, Peter Pirkelbauer, and Bjarne Stroustrup - Lock-free Dynamically Resizable Arrays>
 atomicPush :: CASVector v a => Growable v RealWorld a -> a -> IO ()
 atomicPush (Growable (MutVar mut)) val = go
   where
-    complete vec v = readMutVar v >>= \case
-      Complete -> pure ()
-      Pending i oldVal newVal -> do
-        (_done, _) <- casVectorElem vec i oldVal newVal
-        writeMutVar v Complete
     go = do
       old <- readMutVarForCAS mut
       let GVState len vec pending = peekTicket old
@@ -240,3 +243,22 @@ atomicPush (Growable (MutVar mut)) val = go
       if success
         then complete vec' pending'
         else go
+
+-- | Pop the last element. Returns 'Nothing' if the vector is empty.
+atomicPop :: CASVector v a => Growable v RealWorld a -> IO (Maybe a)
+atomicPop (Growable (MutVar mut)) = go
+  where
+    go = do
+      old <- readMutVarForCAS mut
+      let GVState len vec pending = peekTicket old
+      complete vec pending
+      if len == 0
+        then pure Nothing
+        else do
+          result <- MV.unsafeRead vec (len - 1)
+          pending' <- newMutVar Complete
+          (success, _) <- casMutVar mut old $ GVState (len - 1) vec pending'
+          if success
+            then pure $ Just result
+            else go
+{-# INLINE atomicPop #-}
