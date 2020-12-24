@@ -1,6 +1,6 @@
 cabal-version:       2.2
 name:                data-vector-growable
-version:             0
+version:             0.0.1
 synopsis:            Dynamic growable resizable mutable generic vector
 description:         Dynamic, growable, resizable, mutable and generic vector implementation
 bug-reports:         https://github.com/fumieval/data-vector-growable
