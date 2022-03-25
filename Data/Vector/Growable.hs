@@ -100,7 +100,7 @@ push :: (PrimMonad m, MVector v a) => Growable v (PrimState m) a -> a -> m ()
 push (Growable ref) val = do
   GVState len vec pending <- readMutVar ref
   vec' <- if MV.length vec == len
-    then MV.unsafeGrow vec (max 1 len)
+    then MV.unsafeGrow vec $ growth len
     else pure vec
   writeMutVar ref $ GVState (len + 1) vec' pending
   MV.write vec' len val
@@ -235,7 +235,7 @@ atomicPush (Growable (MutVar mut)) val = go
       let GVState len vec pending = peekTicket old
       complete vec pending
       vec' <- if MV.length vec == len
-        then MV.unsafeGrow vec (max 1 len)
+        then MV.unsafeGrow vec $ growth len
         else pure vec
       oldVal <- readVectorElem vec' len
       pending' <- newMutVar $ Pending len oldVal val
@@ -262,3 +262,7 @@ atomicPop (Growable (MutVar mut)) = go
             then pure $ Just result
             else go
 {-# INLINE atomicPop #-}
+
+growth :: Int -> Int
+growth len = max 1
+  $ len * 1597 `div` 2584 -- approxmation of the golden ratio
